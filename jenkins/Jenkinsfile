@@ -1,0 +1,33 @@
+pipeline {
+    agent any
+    environment {
+        registry = "aws_account_id.dkr.ecr.us-east-1.amazonaws.com/nti-project"  // Add your ECR repo URL
+        registryCredential = 'aws-credentials'  // Add the Jenkins credential ID for AWS
+    }
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    dockerImage = docker.build("my-app:${env.BRANCH_NAME}")
+                }
+            }
+        }
+        stage('Push to ECR') {
+            steps {
+                script {
+                    docker.withRegistry('https://${env.registry}', "${env.registryCredential}") {
+                        dockerImage.push()
+                    }
+                }
+            }
+        }
+        stage('Deploy to EKS') {
+            steps {
+                script {
+                    sh "kubectl apply -f kubernetes/deployments/"
+                    sh "kubectl apply -f kubernetes/services/"
+                }
+            }
+        }
+    }
+}
